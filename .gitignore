@@ -23,5 +23,8 @@ target
 
 # Added by cargo
 
-/target
+# Avoid useless
 *.lock
+
+# Nobody need the imports
+assets/imports
