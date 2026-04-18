@@ -1,10 +1,13 @@
+use std::fs;
+
 use bevy::prelude::*;
 
 pub struct PannelPlugin;
 impl Plugin for PannelPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup)
-            .add_systems(Update, animate_panel);
+            .add_systems(Update, animate_panel)
+            .init_resource::<AssetPalette>();
     }
 }
 
@@ -17,9 +20,35 @@ struct PanelTarget(f32);
 #[derive(Component)]
 struct LoadAssetButton;
 
+#[derive(Resource, Default)]
+pub struct AssetPalette {
+    pub loaded_models: Vec<Handle<Scene>>,
+}
+
 impl LoadAssetButton {
-    fn on_pressed(_click: On<Pointer<Click>>) {
-        println!("pressed");
+    fn on_pressed(
+        _click: On<Pointer<Click>>,
+        asset_server: Res<AssetServer>,
+        mut palette: ResMut<AssetPalette>,
+    ) {
+        if let Some(path) = rfd::FileDialog::new()
+            .add_filter("New asset 3D", &["glb", "gltf"])
+            .pick_file()
+        {
+            let file_name = path.file_name().unwrap().to_str().unwrap();
+            let dest_folder = "assets/imports";
+            let dest_path = format!("{}/{}", dest_folder, file_name);
+            let _ = fs::create_dir(dest_folder);
+            match fs::copy(&path, &dest_path) {
+                Ok(_) => {
+                    let bevy_path = format!("imports/{}#Scene0", file_name);
+                    let handle: Handle<Scene> = asset_server.load(bevy_path);
+                    palette.loaded_models.push(handle);
+                    println!("Success to load asset {}", file_name);
+                }
+                Err(e) => println!("Error while loading asset -> {}", e),
+            }
+        }
     }
 }
 
