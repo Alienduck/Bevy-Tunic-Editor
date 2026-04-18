@@ -1,8 +1,4 @@
-use bevy::{
-    input::{common_conditions::input_just_released, mouse::AccumulatedMouseMotion},
-    prelude::*,
-    window::{CursorGrabMode, CursorOptions, PrimaryWindow, WindowFocused},
-};
+use bevy::prelude::*;
 
 pub struct CameraPlugin;
 impl Plugin for CameraPlugin {
