@@ -14,6 +14,15 @@ struct AnimatedPanel;
 #[derive(Component)]
 struct PanelTarget(f32);
 
+#[derive(Component)]
+struct LoadAssetButton;
+
+impl LoadAssetButton {
+    fn on_pressed() {
+        println!("pressed");
+    }
+}
+
 fn setup(mut commands: Commands) {
     commands
         .spawn((
@@ -30,14 +39,37 @@ fn setup(mut commands: Commands) {
         ))
         .observe(on_hover_enter)
         .observe(on_hover_exit)
-        .with_child((
-            Node {
-                width: Val::Vw(15.),
-                height: Val::Percent(100.),
-                ..default()
-            },
-            BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
-        ));
+        .with_children(|hitbox| {
+            hitbox
+                .spawn((
+                    Node {
+                        width: Val::Vw(15.),
+                        height: Val::Percent(100.),
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
+                ))
+                .with_children(|panel| {
+                    panel.spawn((
+                        Node {
+                            width: Val::Percent(80.),
+                            height: Val::Px(40.),
+                            margin: UiRect::top(Val::Px(20.)),
+                            ..default()
+                        },
+                        Text("Test".to_string()),
+                        TextLayout::new_with_justify(Justify::Center),
+                    ));
+                    panel.spawn((
+                        Button,
+                        LoadAssetButton,
+                        Text("Load an asset".to_string()),
+                        TextLayout::new_with_justify(Justify::Center),
+                    )).observe(LoadAssetButton::on_pressed());
+                });
+        });
 }
 
 fn on_hover_enter(_: On<Pointer<Over>>, mut query: Query<&mut PanelTarget, With<AnimatedPanel>>) {
@@ -55,8 +87,6 @@ fn on_hover_exit(_: On<Pointer<Out>>, mut query: Query<&mut PanelTarget, With<An
 fn animate_panel(mut query: Query<(&mut Node, &PanelTarget)>, time: Res<Time>) {
     for (mut node, target) in &mut query {
         if let Val::Vw(current) = node.left {
-            // LERP method: https://dev.to/rachsmith/lerp-2mh7
-            // TODO: use tween: https://github.com/djeedai/bevy_tweening
             node.left = Val::Vw(current + (target.0 - current) * 15. * time.delta_secs());
         }
     }
