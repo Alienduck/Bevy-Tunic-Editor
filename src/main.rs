@@ -1,11 +1,20 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, window::WindowMode};
 
 mod camera;
+mod pannel;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "TUNIC !!!".to_string(),
+                mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }))
         .add_plugins(camera::CameraPlugin)
+        .add_plugins(pannel::PannelPlugin)
         .add_systems(Startup, setup_world)
         .add_systems(Update, draw_grid)
         .run();
