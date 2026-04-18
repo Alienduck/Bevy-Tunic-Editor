@@ -22,7 +22,7 @@ impl Default for MainCamera {
     fn default() -> Self {
         MainCamera {
             speed: 10.,
-            rotation_speed: 1.,
+            rotation_speed: 2.,
         }
     }
 }
@@ -59,8 +59,17 @@ fn move_camera(
     if input.pressed(KeyCode::KeyE) {
         delta.y += 1.;
     }
-    let (mut transform, cam_data) = camera.into_inner();
-    transform.translation += delta.normalize_or_zero() * cam_data.speed * time.delta_secs();
+
+    if delta != Vec3::ZERO {
+        let (transform, cam_data) = camera.into_inner();
+
+        let yaw = transform.rotation.to_euler(EulerRot::YXZ).0;
+        let flat_rotation = Quat::from_euler(EulerRot::YXZ, yaw, 0., 0.);
+
+        let local_delta = flat_rotation * delta.normalize();
+        let mut transform = transform;
+        transform.translation += local_delta * cam_data.speed * time.delta_secs();
+    }
 }
 
 fn rotate_camera(
@@ -75,12 +84,11 @@ fn rotate_camera(
         orientation -= 1.;
     }
 
-    let (mut transform, camera_info) = camera.into_inner();
-    transform.rotation = transform.rotation
-        * Quat::from_euler(
-            EulerRot::YXZ,
-            orientation * camera_info.rotation_speed * time.delta_secs(),
-            0.,
-            0.,
-        );
+    if orientation != 0. {
+        let (mut transform, camera_info) = camera.into_inner();
+        let rotation_amount = orientation * camera_info.rotation_speed * time.delta_secs();
+        let world_y_rot = Quat::from_euler(EulerRot::YXZ, rotation_amount, 0., 0.);
+
+        transform.rotation = world_y_rot * transform.rotation;
+    }
 }
