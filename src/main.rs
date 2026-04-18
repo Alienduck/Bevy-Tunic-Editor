@@ -34,7 +34,15 @@ fn draw_grid(mut gizmos: Gizmos) {
     let grid_size = 20;
     for i in 0..=grid_size {
         let pos = i as f32 - grid_size as f32 / 2.0;
-        gizmos.line(Vec3::new(-grid_size as f32 / 2.0, 0.0, pos), Vec3::new(grid_size as f32 / 2.0, 0.0, pos), Color::srgb(0.3, 0.3, 0.3));
-        gizmos.line(Vec3::new(pos, 0.0, -grid_size as f32 / 2.0), Vec3::new(pos, 0.0, grid_size as f32 / 2.0), Color::srgb(0.3, 0.3, 0.3));
+        gizmos.line(
+            Vec3::new(-grid_size as f32 / 2.0, 0.0, pos),
+            Vec3::new(grid_size as f32 / 2.0, 0.0, pos),
+            Color::srgb(0.7, 0.7, 0.7),
+        );
+        gizmos.line(
+            Vec3::new(pos, 0.0, -grid_size as f32 / 2.0),
+            Vec3::new(pos, 0.0, grid_size as f32 / 2.0),
+            Color::srgb(0.7, 0.7, 0.7),
+        );
     }
 }
