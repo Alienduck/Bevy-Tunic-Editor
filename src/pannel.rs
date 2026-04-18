@@ -18,7 +18,7 @@ struct PanelTarget(f32);
 struct LoadAssetButton;
 
 impl LoadAssetButton {
-    fn on_pressed() {
+    fn on_pressed(_click: On<Pointer<Click>>) {
         println!("pressed");
     }
 }
@@ -62,12 +62,26 @@ fn setup(mut commands: Commands) {
                         Text("Test".to_string()),
                         TextLayout::new_with_justify(Justify::Center),
                     ));
-                    panel.spawn((
-                        Button,
-                        LoadAssetButton,
-                        Text("Load an asset".to_string()),
-                        TextLayout::new_with_justify(Justify::Center),
-                    )).observe(LoadAssetButton::on_pressed());
+
+                    panel
+                        .spawn((
+                            Button,
+                            Node {
+                                width: Val::Percent(80.),
+                                height: Val::Px(40.),
+                                margin: UiRect::top(Val::Px(10.)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.4, 0.4, 0.4)),
+                            LoadAssetButton,
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn((
+                                Text("Load an asset".to_string()),
+                                TextLayout::new_with_justify(Justify::Center),
+                            ));
+                        })
+                        .observe(LoadAssetButton::on_pressed);
                 });
         });
 }
@@ -87,6 +101,8 @@ fn on_hover_exit(_: On<Pointer<Out>>, mut query: Query<&mut PanelTarget, With<An
 fn animate_panel(mut query: Query<(&mut Node, &PanelTarget)>, time: Res<Time>) {
     for (mut node, target) in &mut query {
         if let Val::Vw(current) = node.left {
+            // Actually use LERP method: https://en.wikipedia.org/wiki/Linear_interpolation
+            // TODO: use the tween service: https://github.com/djeedai/bevy_tweening
             node.left = Val::Vw(current + (target.0 - current) * 15. * time.delta_secs());
         }
     }
