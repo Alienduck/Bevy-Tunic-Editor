@@ -2,7 +2,7 @@ use crate::pannel::AssetPalette;
 use bevy::{
     platform::collections::HashMap,
     prelude::*,
-    render::render_resource::{AsBindGroup, ShaderType},
+    render::{render_resource::AsBindGroup, storage::ShaderStorageBuffer},
     shader::ShaderRef,
 };
 
@@ -15,18 +15,10 @@ impl Plugin for PickerPlugin {
     }
 }
 
-#[derive(ShaderType, Debug, Clone)]
-pub struct GridUniform {
-    pub color: LinearRgba,
-    pub fade_distance: f32,
-    pub line_width: f32,
-    pub _padding: Vec2,
-}
-
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct GridMaterial {
-    #[uniform(0)]
-    pub settings: GridUniform,
+    #[storage(0, read_only)]
+    pub settings: Handle<ShaderStorageBuffer>,
 }
 
 impl Material for GridMaterial {
@@ -47,19 +39,20 @@ fn setup_grid(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<GridMaterial>>,
+    mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
 ) {
+    let color = LinearRgba::new(0.7, 0.7, 0.7, 0.8);
+    let data: Vec<[f32; 4]> = vec![
+        [color.red, color.green, color.blue, color.alpha],
+        [60.0, 1.5, 0.0, 0.0],
+    ];
+    let buffer = buffers.add(ShaderStorageBuffer::from(data));
+
     commands
         .spawn((
             Mesh3d(meshes.add(Plane3d::default().mesh().size(10000.0, 10000.0))),
-            MeshMaterial3d(materials.add(GridMaterial {
-                settings: GridUniform {
-                    color: LinearRgba::new(0.7, 0.7, 0.7, 0.8),
-                    fade_distance: 60.0,
-                    line_width: 1.5,
-                    _padding: Vec2::ZERO,
-                },
-            })),
-            Transform::from_xyz(0.0, 0.0, 0.0),
+            MeshMaterial3d(materials.add(GridMaterial { settings: buffer })),
+            Transform::default(),
             Pickable::default(),
         ))
         .observe(on_click);
@@ -77,26 +70,21 @@ fn on_click(
     let Some(position) = event.hit.position else {
         return;
     };
-
     let cell_pos = IVec3::new(position.x.floor() as i32, 0, position.z.floor() as i32);
-
     if grid.cells.contains_key(&cell_pos) {
         return;
     }
-
     let Some(i) = palette.selected_index else {
         return;
     };
     let Some((_, handle)) = palette.loaded_models.get(i) else {
         return;
     };
-
     let entity = commands
         .spawn((
             SceneRoot(handle.clone()),
             Transform::from_xyz(cell_pos.x as f32 + 0.5, 0.0, cell_pos.z as f32 + 0.5),
         ))
         .id();
-
     grid.cells.insert(cell_pos, entity);
 }
