@@ -1,6 +1,5 @@
-use std::fs;
-
 use bevy::prelude::*;
+use std::fs;
 
 pub struct PannelPlugin;
 impl Plugin for PannelPlugin {
@@ -13,16 +12,19 @@ impl Plugin for PannelPlugin {
 
 #[derive(Component)]
 struct AnimatedPanel;
-
 #[derive(Component)]
 struct PanelTarget(f32);
-
 #[derive(Component)]
 struct LoadAssetButton;
+#[derive(Component)]
+struct AssetListContainer;
+#[derive(Component)]
+struct SelectAssetButton(usize);
 
 #[derive(Resource, Default)]
 pub struct AssetPalette {
-    pub loaded_models: Vec<Handle<Scene>>,
+    pub loaded_models: Vec<(String, Handle<Scene>)>,
+    pub selected_index: Option<usize>,
 }
 
 impl LoadAssetButton {
@@ -30,25 +32,58 @@ impl LoadAssetButton {
         _click: On<Pointer<Click>>,
         asset_server: Res<AssetServer>,
         mut palette: ResMut<AssetPalette>,
+        mut commands: Commands,
+        query_container: Query<Entity, With<AssetListContainer>>,
     ) {
-        if let Some(path) = rfd::FileDialog::new()
-            .add_filter("New asset 3D", &["glb", "gltf"])
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter("3D", &["glb", "gltf"])
             .pick_file()
-        {
-            let file_name = path.file_name().unwrap().to_str().unwrap();
-            let dest_folder = "assets/imports";
-            let dest_path = format!("{}/{}", dest_folder, file_name);
-            let _ = fs::create_dir(dest_folder);
-            match fs::copy(&path, &dest_path) {
-                Ok(_) => {
-                    let bevy_path = format!("imports/{}#Scene0", file_name);
-                    let handle: Handle<Scene> = asset_server.load(bevy_path);
-                    palette.loaded_models.push(handle);
-                    println!("Success to load asset {}", file_name);
-                }
-                Err(e) => println!("Error while loading asset -> {}", e),
+        else {
+            return;
+        };
+        let file_name = path.file_name().unwrap().to_str().unwrap().to_string();
+        let dest = format!("assets/imports/{}", file_name);
+        let _ = fs::create_dir_all("assets/imports");
+
+        if fs::copy(&path, &dest).is_ok() {
+            let handle: Handle<Scene> = asset_server.load(format!("imports/{}#Scene0", file_name));
+            palette.loaded_models.push((file_name.clone(), handle));
+            let new_idx = palette.loaded_models.len() - 1;
+
+            if let Ok(container) = query_container.single() {
+                commands.entity(container).with_children(|parent| {
+                    parent
+                        .spawn((
+                            Button,
+                            Node {
+                                width: Val::Percent(100.),
+                                height: Val::Px(30.),
+                                margin: UiRect::bottom(Val::Px(5.)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.3, 0.3, 0.3)),
+                            SelectAssetButton(new_idx),
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn((
+                                Text(file_name),
+                                TextLayout::new_with_justify(Justify::Center),
+                            ));
+                        })
+                        .observe(on_asset_selected);
+                });
             }
         }
+    }
+}
+
+fn on_asset_selected(
+    click: On<Pointer<Click>>,
+    query: Query<&SelectAssetButton>,
+    mut palette: ResMut<AssetPalette>,
+) {
+    if let Ok(btn) = query.get(click.entity) {
+        palette.selected_index = Some(btn.0);
     }
 }
 
@@ -88,10 +123,9 @@ fn setup(mut commands: Commands) {
                             margin: UiRect::top(Val::Px(20.)),
                             ..default()
                         },
-                        Text("Test".to_string()),
+                        Text("Palette".to_string()),
                         TextLayout::new_with_justify(Justify::Center),
                     ));
-
                     panel
                         .spawn((
                             Button,
@@ -106,32 +140,40 @@ fn setup(mut commands: Commands) {
                         ))
                         .with_children(|btn| {
                             btn.spawn((
-                                Text("Load an asset".to_string()),
+                                Text("Load".to_string()),
                                 TextLayout::new_with_justify(Justify::Center),
                             ));
                         })
                         .observe(LoadAssetButton::on_pressed);
+
+                    panel.spawn((
+                        Node {
+                            width: Val::Percent(80.),
+                            height: Val::Percent(100.),
+                            flex_direction: FlexDirection::Column,
+                            margin: UiRect::top(Val::Px(20.)),
+                            ..default()
+                        },
+                        AssetListContainer,
+                    ));
                 });
         });
 }
 
-fn on_hover_enter(_: On<Pointer<Over>>, mut query: Query<&mut PanelTarget, With<AnimatedPanel>>) {
-    for mut target in &mut query {
-        target.0 = 0.;
+fn on_hover_enter(_: On<Pointer<Over>>, mut q: Query<&mut PanelTarget, With<AnimatedPanel>>) {
+    for mut t in &mut q {
+        t.0 = 0.;
     }
 }
-
-fn on_hover_exit(_: On<Pointer<Out>>, mut query: Query<&mut PanelTarget, With<AnimatedPanel>>) {
-    for mut target in &mut query {
-        target.0 = -15.;
+fn on_hover_exit(_: On<Pointer<Out>>, mut q: Query<&mut PanelTarget, With<AnimatedPanel>>) {
+    for mut t in &mut q {
+        t.0 = -15.;
     }
 }
 
 fn animate_panel(mut query: Query<(&mut Node, &PanelTarget)>, time: Res<Time>) {
     for (mut node, target) in &mut query {
         if let Val::Vw(current) = node.left {
-            // Actually use LERP method: https://en.wikipedia.org/wiki/Linear_interpolation
-            // TODO: use the tween service: https://github.com/djeedai/bevy_tweening
             node.left = Val::Vw(current + (target.0 - current) * 15. * time.delta_secs());
         }
     }
