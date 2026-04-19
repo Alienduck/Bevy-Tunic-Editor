@@ -43,6 +43,7 @@ fn move_camera(
     time: Res<Time>,
 ) {
     let mut delta = Vec3::ZERO;
+    let mut speed = camera.1.speed;
     if input.pressed(KeyCode::KeyA) {
         delta.x -= 1.;
     }
@@ -61,6 +62,9 @@ fn move_camera(
     if input.pressed(KeyCode::KeyE) {
         delta.y += 1.;
     }
+    if input.pressed(KeyCode::ShiftLeft) {
+        speed /= 2.;
+    }
 
     if delta != Vec3::ZERO {
         let (transform, cam_data) = camera.into_inner();
@@ -70,7 +74,7 @@ fn move_camera(
 
         let local_delta = flat_rotation * delta.normalize();
         let mut transform = transform;
-        transform.translation += local_delta * cam_data.speed * time.delta_secs();
+        transform.translation += local_delta * speed * time.delta_secs();
     }
 }
 
