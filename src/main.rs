@@ -14,6 +14,7 @@ fn main() {
             }),
             ..default()
         }))
+        .add_plugins(MeshPickingPlugin)
         .add_plugins(camera::CameraPlugin)
         .add_plugins(pannel::PannelPlugin)
         .add_plugins(picker::PickerPlugin)
