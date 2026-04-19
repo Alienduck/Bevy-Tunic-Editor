@@ -53,19 +53,19 @@ fn draw_grid(mut gizmos: Gizmos, camera_q: Query<&Transform, With<Camera>>) {
     let center_x = focus_point.x.floor();
     let center_z = focus_point.z.floor();
 
-    let ext = 30.0;
+    let ext = 100.0;
 
-    for i in -30..=30 {
+    for i in -100..=100 {
         let offset = i as f32;
         gizmos.line(
             Vec3::new(center_x - ext, 0., center_z + offset),
             Vec3::new(center_x + ext, 0., center_z + offset),
-            Color::srgb(0.7, 0.7, 0.7),
+            Color::srgba(0.7, 0.7, 0.7, 0.5),
         );
         gizmos.line(
             Vec3::new(center_x + offset, 0., center_z - ext),
             Vec3::new(center_x + offset, 0., center_z + ext),
-            Color::srgb(0.7, 0.7, 0.7),
+            Color::srgba(0.7, 0.7, 0.7, 0.5),
         );
     }
 }
