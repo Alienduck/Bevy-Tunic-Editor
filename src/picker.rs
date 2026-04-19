@@ -44,7 +44,7 @@ fn setup_grid(
     let color = LinearRgba::new(0.7, 0.7, 0.7, 0.8);
     let data: Vec<[f32; 4]> = vec![
         [color.red, color.green, color.blue, color.alpha],
-        [60.0, 1.5, 0.0, 0.0],
+        [50.0, 1., 0.0, 0.0],
     ];
     let buffer = buffers.add(ShaderStorageBuffer::from(data));
 
