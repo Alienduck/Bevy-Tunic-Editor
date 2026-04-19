@@ -1,12 +1,40 @@
 use crate::pannel::AssetPalette;
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::{
+    platform::collections::HashMap,
+    prelude::*,
+    render::render_resource::{AsBindGroup, ShaderType},
+    shader::ShaderRef,
+};
 
 pub struct PickerPlugin;
 impl Plugin for PickerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WorldGrid>()
-            .add_systems(Startup, setup_grid)
-            .add_systems(Update, draw_grid);
+            .add_plugins(MaterialPlugin::<GridMaterial>::default())
+            .add_systems(Startup, setup_grid);
+    }
+}
+
+#[derive(ShaderType, Debug, Clone)]
+pub struct GridUniform {
+    pub color: LinearRgba,
+    pub fade_distance: f32,
+    pub line_width: f32,
+    pub _padding: Vec2,
+}
+
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
+pub struct GridMaterial {
+    #[uniform(0)]
+    pub settings: GridUniform,
+}
+
+impl Material for GridMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/grid.wgsl".into()
+    }
+    fn alpha_mode(&self) -> AlphaMode {
+        AlphaMode::Blend
     }
 }
 
@@ -18,56 +46,23 @@ pub struct WorldGrid {
 fn setup_grid(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<GridMaterial>>,
 ) {
     commands
         .spawn((
             Mesh3d(meshes.add(Plane3d::default().mesh().size(10000.0, 10000.0))),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: Color::srgba(0.0, 1.0, 0.0, 0.0),
-                alpha_mode: AlphaMode::Blend,
-                ..default()
+            MeshMaterial3d(materials.add(GridMaterial {
+                settings: GridUniform {
+                    color: LinearRgba::new(0.7, 0.7, 0.7, 0.8),
+                    fade_distance: 60.0,
+                    line_width: 1.5,
+                    _padding: Vec2::ZERO,
+                },
             })),
             Transform::from_xyz(0.0, 0.0, 0.0),
             Pickable::default(),
         ))
         .observe(on_click);
-}
-
-fn draw_grid(mut gizmos: Gizmos, camera_q: Query<&Transform, With<Camera>>) {
-    let Ok(cam_tf) = camera_q.single() else {
-        return;
-    };
-
-    let cam_pos = cam_tf.translation;
-    let forward = cam_tf.rotation * Vec3::NEG_Z;
-
-    let focus_point = if forward.y < -0.01 {
-        let t = -cam_pos.y / forward.y;
-        cam_pos + forward * t
-    } else {
-        let forward_xz = Vec3::new(forward.x, 0.0, forward.z).normalize_or_zero();
-        cam_pos + forward_xz * 30.0
-    };
-
-    let center_x = focus_point.x.floor();
-    let center_z = focus_point.z.floor();
-
-    let ext = 100.0;
-
-    for i in -100..=100 {
-        let offset = i as f32;
-        gizmos.line(
-            Vec3::new(center_x - ext, 0., center_z + offset),
-            Vec3::new(center_x + ext, 0., center_z + offset),
-            Color::srgba(0.7, 0.7, 0.7, 0.5),
-        );
-        gizmos.line(
-            Vec3::new(center_x + offset, 0., center_z - ext),
-            Vec3::new(center_x + offset, 0., center_z + ext),
-            Color::srgba(0.7, 0.7, 0.7, 0.5),
-        );
-    }
 }
 
 fn on_click(
@@ -86,7 +81,6 @@ fn on_click(
     let cell_pos = IVec3::new(position.x.floor() as i32, 0, position.z.floor() as i32);
 
     if grid.cells.contains_key(&cell_pos) {
-        println!("Cell occupied: {:?}", cell_pos);
         return;
     }
 
@@ -100,8 +94,7 @@ fn on_click(
     let entity = commands
         .spawn((
             SceneRoot(handle.clone()),
-            Transform::from_xyz(cell_pos.x as f32 + 0.5, 0.0, cell_pos.z as f32 + 0.5)
-                .with_scale(Vec3::splat(1.0)),
+            Transform::from_xyz(cell_pos.x as f32 + 0.5, 0.0, cell_pos.z as f32 + 0.5),
         ))
         .id();
 
