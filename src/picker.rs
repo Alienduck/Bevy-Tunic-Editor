@@ -18,33 +18,14 @@ fn setup_grid(
         .spawn((
             Mesh3d(meshes.add(Plane3d::default().mesh().size(20.0, 20.0))),
             MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: Color::NONE,
+                base_color: Color::srgba(0.0, 1.0, 0.0, 0.05),
                 alpha_mode: AlphaMode::Blend,
                 ..default()
             })),
             Transform::from_xyz(0.0, 0.0, 0.0),
+            Pickable::default(),
         ))
-        .observe(on_grid_click);
-}
-
-fn on_grid_click(
-    click: On<Pointer<Click>>,
-    mut commands: Commands,
-    palette: Res<AssetPalette>, // On utilise la ressource de pannel.rs
-) {
-    if click.button != PointerButton::Primary {
-        return;
-    }
-    if let Some(pos) = click.hit.position {
-        if let Some(idx) = palette.selected_index {
-            if let Some((_, handle)) = palette.loaded_models.get(idx) {
-                commands.spawn((
-                    SceneRoot(handle.clone()),
-                    Transform::from_xyz(pos.x.round(), 0.0, pos.z.round()),
-                ));
-            }
-        }
-    }
+        .observe(on_click);
 }
 
 fn draw_grid(mut gizmos: Gizmos) {
@@ -61,5 +42,22 @@ fn draw_grid(mut gizmos: Gizmos) {
             Vec3::new(pos, 0., 10.),
             Color::srgb(0.7, 0.7, 0.7),
         );
+    }
+}
+
+fn on_click(event: On<Pointer<Press>>, palette: Res<AssetPalette>, mut commands: Commands) {
+    if event.button != PointerButton::Primary {
+        return;
+    }
+    if let Some(position) = event.hit.position {
+        if let Some(i) = palette.selected_index {
+            if let Some((_, handle)) = palette.loaded_models.get(i) {
+                let snap_pos = position.round();
+                commands.spawn((
+                    SceneRoot(handle.clone()),
+                    Transform::from_xyz(snap_pos.x + 0.5, snap_pos.y, snap_pos.z + 0.5),
+                ));
+            }
+        }
     }
 }
