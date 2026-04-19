@@ -38,11 +38,24 @@ fn draw_grid(mut gizmos: Gizmos, camera_q: Query<&Transform, With<Camera>>) {
     let Ok(cam_tf) = camera_q.single() else {
         return;
     };
-    let center_x = cam_tf.translation.x.floor();
-    let center_z = cam_tf.translation.z.floor();
-    let ext = 50.0;
 
-    for i in -50..=50 {
+    let cam_pos = cam_tf.translation;
+    let forward = cam_tf.rotation * Vec3::NEG_Z;
+
+    let focus_point = if forward.y < -0.01 {
+        let t = -cam_pos.y / forward.y;
+        cam_pos + forward * t
+    } else {
+        let forward_xz = Vec3::new(forward.x, 0.0, forward.z).normalize_or_zero();
+        cam_pos + forward_xz * 30.0
+    };
+
+    let center_x = focus_point.x.floor();
+    let center_z = focus_point.z.floor();
+
+    let ext = 30.0;
+
+    for i in -30..=30 {
         let offset = i as f32;
         gizmos.line(
             Vec3::new(center_x - ext, 0., center_z + offset),
