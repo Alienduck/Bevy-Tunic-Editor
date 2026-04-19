@@ -1,4 +1,8 @@
-use bevy::{prelude::*, window::WindowMode};
+use bevy::{
+    prelude::*,
+    render::batching::gpu_preprocessing::{GpuPreprocessingMode, GpuPreprocessingSupport},
+    window::WindowMode,
+};
 
 mod camera;
 mod pannel;
@@ -14,6 +18,9 @@ fn main() {
             }),
             ..default()
         }))
+        .insert_resource(GpuPreprocessingSupport {
+            max_supported_mode: GpuPreprocessingMode::None,
+        })
         .add_plugins(MeshPickingPlugin)
         .add_plugins(camera::CameraPlugin)
         .add_plugins(pannel::PannelPlugin)
