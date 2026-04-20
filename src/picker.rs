@@ -12,7 +12,8 @@ impl Plugin for PickerPlugin {
         app.init_resource::<WorldGrid>()
             .init_resource::<PreEntity>()
             .add_plugins(MaterialPlugin::<GridMaterial>::default())
-            .add_systems(Startup, setup_grid);
+            .add_systems(Startup, setup_grid)
+            .add_systems(Update, process_ghost_model);
     }
 }
 
@@ -42,6 +43,44 @@ pub struct PreEntity {
     pub rotation: f32,
     pub origin_mesh: Option<Handle<Scene>>,
     pub entity: Option<Entity>,
+}
+
+#[derive(Component)]
+struct GhostProcessed;
+
+fn process_ghost_model(
+    pre_entity: Res<PreEntity>,
+    mut commands: Commands,
+    children_query: Query<&Children>,
+    unprocessed_meshes: Query<&MeshMaterial3d<StandardMaterial>, Without<GhostProcessed>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let Some(ghost_ent) = pre_entity.entity else {
+        return;
+    };
+    let mut queue = vec![ghost_ent];
+
+    while let Some(current) = queue.pop() {
+        if let Ok(children) = children_query.get(current) {
+            queue.extend(children.iter());
+        }
+
+        if let Ok(mat_handle) = unprocessed_meshes.get(current) {
+            commands.entity(current).insert(GhostProcessed);
+
+            if let Some(mat) = materials.get(&mat_handle.0) {
+                let mut new_mat = mat.clone();
+                new_mat.alpha_mode = AlphaMode::Blend;
+
+                let c = new_mat.base_color.to_srgba();
+                new_mat.base_color = Color::srgba(c.red, c.green, c.blue, 0.4);
+
+                commands
+                    .entity(current)
+                    .insert(MeshMaterial3d(materials.add(new_mat)));
+            }
+        }
+    }
 }
 
 fn setup_grid(
@@ -104,7 +143,7 @@ fn left_click(
         .spawn((
             SceneRoot(handle.clone()),
             Transform::from_xyz(cell_pos.x as f32 + 0.5, 0.0, cell_pos.z as f32 + 0.5),
-            Pickable::default(),
+            Pickable::IGNORE,
         ))
         .observe(on_click)
         .id();
