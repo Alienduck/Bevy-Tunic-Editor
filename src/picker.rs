@@ -10,6 +10,7 @@ pub struct PickerPlugin;
 impl Plugin for PickerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WorldGrid>()
+            .init_resource::<PreEntity>()
             .add_plugins(MaterialPlugin::<GridMaterial>::default())
             .add_systems(Startup, setup_grid);
     }
@@ -35,6 +36,14 @@ pub struct WorldGrid {
     pub cells: HashMap<IVec3, Entity>,
 }
 
+#[derive(Resource, Default)]
+pub struct PreEntity {
+    pub pos: Vec3,
+    pub rotation: f32,
+    pub origin_mesh: Option<Handle<Scene>>,
+    pub entity: Option<Entity>,
+}
+
 fn setup_grid(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -55,7 +64,8 @@ fn setup_grid(
             Transform::default(),
             Pickable::default(),
         ))
-        .observe(on_click);
+        .observe(on_click)
+        .observe(update_pre_entity);
 }
 
 fn on_click(
@@ -112,5 +122,31 @@ fn grid_right_click(event: On<Pointer<Press>>, grid: ResMut<WorldGrid>, commands
 fn delete_entity(mut grid: ResMut<WorldGrid>, mut commands: Commands, cell_pos: IVec3) {
     if let Some(entity) = grid.cells.remove(&cell_pos) {
         commands.entity(entity).despawn();
+    }
+}
+
+fn update_pre_entity(
+    event: On<Pointer<Move>>,
+    mut pre_entity: ResMut<PreEntity>,
+    mut transforms: Query<&mut Transform>,
+) {
+    let Some(r_mouse_pos) = event.hit.position else {
+        return;
+    };
+    let cell_pos = IVec3::new(
+        r_mouse_pos.x.floor() as i32,
+        0,
+        r_mouse_pos.z.floor() as i32,
+    );
+    let target_pos = Vec3::new(cell_pos.x as f32 + 0.5, 0.0, cell_pos.z as f32 + 0.5);
+    if pre_entity.pos == target_pos || pre_entity.origin_mesh.is_none() {
+        return;
+    }
+    let Some(entity) = pre_entity.entity else {
+        return;
+    };
+    pre_entity.pos = target_pos;
+    if let Ok(mut transform) = transforms.get_mut(entity) {
+        transform.translation = target_pos;
     }
 }
