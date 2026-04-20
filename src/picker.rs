@@ -13,7 +13,7 @@ impl Plugin for PickerPlugin {
             .init_resource::<PreEntity>()
             .add_plugins(MaterialPlugin::<GridMaterial>::default())
             .add_systems(Startup, setup_grid)
-            .add_systems(Update, process_ghost_model);
+            .add_systems(Update, (process_ghost_model, rotate_entity));
     }
 }
 
@@ -71,8 +71,6 @@ fn process_ghost_model(
             if let Some(mat) = materials.get(&mat_handle.0) {
                 let mut new_mat = mat.clone();
                 new_mat.alpha_mode = AlphaMode::Blend;
-
-                let c = new_mat.base_color.to_srgba();
                 new_mat.base_color = Color::srgba(0.9, 0.9, 0.9, 0.2);
 
                 commands
@@ -112,9 +110,10 @@ fn on_click(
     palette: Res<AssetPalette>,
     grid: ResMut<WorldGrid>,
     commands: Commands,
+    pre_entity: Res<PreEntity>,
 ) {
     if event.button == PointerButton::Primary {
-        left_click(event, palette, grid, commands);
+        left_click(event, palette, pre_entity, grid, commands);
     } else if event.button == PointerButton::Secondary {
         grid_right_click(event, grid, commands);
     }
@@ -123,6 +122,7 @@ fn on_click(
 fn left_click(
     event: On<Pointer<Press>>,
     palette: Res<AssetPalette>,
+    pre_entity: Res<PreEntity>,
     mut grid: ResMut<WorldGrid>,
     mut commands: Commands,
 ) {
@@ -142,7 +142,8 @@ fn left_click(
     let entity = commands
         .spawn((
             SceneRoot(handle.clone()),
-            Transform::from_xyz(cell_pos.x as f32 + 0.5, 0.0, cell_pos.z as f32 + 0.5),
+            Transform::from_xyz(cell_pos.x as f32 + 0.5, 0.0, cell_pos.z as f32 + 0.5)
+                .with_rotation(Quat::from_rotation_y(pre_entity.rotation)),
             Pickable::IGNORE,
         ))
         .observe(on_click)
@@ -187,5 +188,24 @@ fn update_pre_entity(
     pre_entity.pos = target_pos;
     if let Ok(mut transform) = transforms.get_mut(entity) {
         transform.translation = target_pos;
+    }
+}
+
+fn rotate_entity(
+    input: Res<ButtonInput<KeyCode>>,
+    mut pre_entity: ResMut<PreEntity>,
+    mut transforms: Query<&mut Transform>,
+) {
+    if !input.just_pressed(KeyCode::KeyR) {
+        return;
+    }
+    pre_entity.rotation += std::f32::consts::FRAC_PI_4;
+    if pre_entity.rotation >= std::f32::consts::TAU {
+        pre_entity.rotation -= std::f32::consts::TAU;
+    }
+    if let Some(entity) = pre_entity.entity {
+        if let Ok(mut transform) = transforms.get_mut(entity) {
+            transform.rotation = Quat::from_rotation_y(pre_entity.rotation);
+        }
     }
 }
