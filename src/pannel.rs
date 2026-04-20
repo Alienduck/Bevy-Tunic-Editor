@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use std::fs;
 
+use crate::picker::PreEntity;
+
 pub struct PannelPlugin;
 impl Plugin for PannelPlugin {
     fn build(&self, app: &mut App) {
@@ -80,10 +82,24 @@ impl LoadAssetButton {
 fn on_asset_selected(
     click: On<Pointer<Click>>,
     query: Query<&SelectAssetButton>,
+    mut pre_entity: ResMut<PreEntity>,
     mut palette: ResMut<AssetPalette>,
+    mut commands: Commands,
 ) {
     if let Ok(btn) = query.get(click.entity) {
         palette.selected_index = Some(btn.0);
+        let Some((_, handle)) = palette.loaded_models.get(btn.0) else {
+            return;
+        };
+        pre_entity.origin_mesh = Some(handle.clone());
+        if pre_entity.entity.is_some() {
+            commands.entity(pre_entity.entity.unwrap()).despawn();
+        }
+        pre_entity.entity = Some(
+            commands
+                .spawn((SceneRoot(handle.clone()), Pickable::IGNORE))
+                .id(),
+        );
     }
 }
 
