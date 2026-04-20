@@ -73,7 +73,7 @@ fn process_ghost_model(
                 new_mat.alpha_mode = AlphaMode::Blend;
 
                 let c = new_mat.base_color.to_srgba();
-                new_mat.base_color = Color::srgba(c.red, c.green, c.blue, 0.4);
+                new_mat.base_color = Color::srgba(0.9, 0.9, 0.9, 0.2);
 
                 commands
                     .entity(current)
