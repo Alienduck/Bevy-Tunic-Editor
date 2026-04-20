@@ -21,6 +21,10 @@ fn main() {
         .insert_resource(GpuPreprocessingSupport {
             max_supported_mode: GpuPreprocessingMode::Culling,
         })
+        .insert_resource(MeshPickingSettings {
+            require_markers: true,
+            ..default()
+        })
         .add_plugins(MeshPickingPlugin)
         .add_plugins(camera::CameraPlugin)
         .add_plugins(pannel::PannelPlugin)
