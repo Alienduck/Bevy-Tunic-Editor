@@ -61,12 +61,22 @@ fn setup_grid(
 fn on_click(
     event: On<Pointer<Press>>,
     palette: Res<AssetPalette>,
+    grid: ResMut<WorldGrid>,
+    commands: Commands,
+) {
+    if event.button == PointerButton::Primary {
+        left_click(event, palette, grid, commands);
+    } else if event.button == PointerButton::Secondary {
+        grid_right_click(event, grid, commands);
+    }
+}
+
+fn left_click(
+    event: On<Pointer<Press>>,
+    palette: Res<AssetPalette>,
     mut grid: ResMut<WorldGrid>,
     mut commands: Commands,
 ) {
-    if event.button != PointerButton::Primary {
-        return;
-    }
     let Some(position) = event.hit.position else {
         return;
     };
@@ -84,7 +94,23 @@ fn on_click(
         .spawn((
             SceneRoot(handle.clone()),
             Transform::from_xyz(cell_pos.x as f32 + 0.5, 0.0, cell_pos.z as f32 + 0.5),
+            Pickable::default(),
         ))
+        .observe(on_click)
         .id();
     grid.cells.insert(cell_pos, entity);
+}
+
+fn grid_right_click(event: On<Pointer<Press>>, grid: ResMut<WorldGrid>, commands: Commands) {
+    let Some(position) = event.hit.position else {
+        return;
+    };
+    let cell_pos = IVec3::new(position.x.floor() as i32, 0, position.z.floor() as i32);
+    delete_entity(grid, commands, cell_pos);
+}
+
+fn delete_entity(mut grid: ResMut<WorldGrid>, mut commands: Commands, cell_pos: IVec3) {
+    if let Some(entity) = grid.cells.remove(&cell_pos) {
+        commands.entity(entity).despawn();
+    }
 }
