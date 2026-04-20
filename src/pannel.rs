@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::fs;
 
-use crate::picker::PreEntity;
+use crate::picker::{AutoScale, PreEntity};
 
 pub struct PannelPlugin;
 impl Plugin for PannelPlugin {
@@ -97,7 +97,7 @@ fn on_asset_selected(
         }
         pre_entity.entity = Some(
             commands
-                .spawn((SceneRoot(handle.clone()), Pickable::IGNORE))
+                .spawn((SceneRoot(handle.clone()), Pickable::IGNORE, AutoScale))
                 .id(),
         );
     }

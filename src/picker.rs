@@ -1,5 +1,6 @@
 use crate::pannel::AssetPalette;
 use bevy::{
+    camera::primitives::Aabb,
     platform::collections::HashMap,
     prelude::*,
     render::{render_resource::AsBindGroup, storage::ShaderStorageBuffer},
@@ -13,7 +14,10 @@ impl Plugin for PickerPlugin {
             .init_resource::<PreEntity>()
             .add_plugins(MaterialPlugin::<GridMaterial>::default())
             .add_systems(Startup, setup_grid)
-            .add_systems(Update, (process_ghost_model, rotate_entity));
+            .add_systems(
+                Update,
+                (process_ghost_model, rotate_entity, apply_auto_scale),
+            );
     }
 }
 
@@ -31,6 +35,9 @@ impl Material for GridMaterial {
         AlphaMode::Blend
     }
 }
+
+#[derive(Component)]
+pub struct AutoScale;
 
 #[derive(Resource, Default)]
 pub struct WorldGrid {
@@ -145,10 +152,54 @@ fn left_click(
             Transform::from_xyz(cell_pos.x as f32 + 0.5, 0.0, cell_pos.z as f32 + 0.5)
                 .with_rotation(Quat::from_rotation_y(pre_entity.rotation)),
             Pickable::IGNORE,
+            AutoScale,
         ))
         .observe(on_click)
         .id();
     grid.cells.insert(cell_pos, entity);
+}
+
+fn apply_auto_scale(
+    mut commands: Commands,
+    mut query_roots: Query<(Entity, &mut Transform), With<AutoScale>>,
+    children_query: Query<&Children>,
+    aabb_query: Query<(&Aabb, &GlobalTransform)>,
+) {
+    for (root, mut transform) in query_roots.iter_mut() {
+        let mut queue = vec![root];
+        let mut min_pt = Vec3::splat(f32::MAX);
+        let mut max_pt = Vec3::splat(f32::MIN);
+        let mut found = false;
+
+        while let Some(current) = queue.pop() {
+            if let Ok(children) = children_query.get(current) {
+                queue.extend(children.iter());
+            }
+
+            if let Ok((aabb, global_transform)) = aabb_query.get(current) {
+                let affine = global_transform.compute_transform();
+
+                let center = affine.transform_point(Vec3::from(aabb.center));
+                let extents = affine.scale * Vec3::from(aabb.half_extents);
+
+                min_pt = min_pt.min(center - extents.abs());
+                max_pt = max_pt.max(center + extents.abs());
+                found = true;
+            }
+        }
+
+        if found {
+            let size = max_pt - min_pt;
+            let max_size = size.x.max(size.y).max(size.z);
+
+            if max_size > 1.0 {
+                let scale_factor = 1.0 / max_size;
+                transform.scale = Vec3::splat(scale_factor);
+            }
+
+            commands.entity(root).remove::<AutoScale>();
+        }
+    }
 }
 
 fn grid_right_click(event: On<Pointer<Press>>, grid: ResMut<WorldGrid>, commands: Commands) {
