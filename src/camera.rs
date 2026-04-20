@@ -67,7 +67,7 @@ fn move_camera(
     }
 
     if delta != Vec3::ZERO {
-        let (transform, cam_data) = camera.into_inner();
+        let (transform, _) = camera.into_inner();
 
         let yaw = transform.rotation.to_euler(EulerRot::YXZ).0;
         let flat_rotation = Quat::from_euler(EulerRot::YXZ, yaw, 0., 0.);
