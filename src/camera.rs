@@ -64,7 +64,7 @@ fn move_camera(
         delta.y += 1.;
     }
     if input.pressed(KeyCode::ShiftLeft) {
-        speed /= 2.;
+        speed /= 4.;
     }
 
     if delta != Vec3::ZERO {
