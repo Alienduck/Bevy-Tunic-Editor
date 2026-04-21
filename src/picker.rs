@@ -103,7 +103,7 @@ fn setup_grid(
 
     commands
         .spawn((
-            Mesh3d(meshes.add(Plane3d::default().mesh().size(10000.0, 10000.0))),
+            Mesh3d(meshes.add(Plane3d::default().mesh().size(500., 500.0))),
             MeshMaterial3d(materials.add(GridMaterial { settings: buffer })),
             Transform::default(),
             Pickable::default(),
@@ -115,48 +115,42 @@ fn setup_grid(
 fn on_click(
     event: On<Pointer<Press>>,
     palette: Res<AssetPalette>,
-    grid: ResMut<WorldGrid>,
-    commands: Commands,
+    mut grid: ResMut<WorldGrid>,
+    mut commands: Commands,
     pre_entity: Res<PreEntity>,
 ) {
     if event.button == PointerButton::Primary {
-        left_click(event, palette, pre_entity, grid, commands);
+        let Some(position) = event.hit.position else {
+            return;
+        };
+        let cell_pos = IVec3::new(position.x.floor() as i32, 0, position.z.floor() as i32);
+        if grid.cells.contains_key(&cell_pos) {
+            return;
+        }
+        let Some(i) = palette.selected_index else {
+            return;
+        };
+        let Some((_, handle)) = palette.loaded_models.get(i) else {
+            return;
+        };
+        let entity = commands
+            .spawn((
+                SceneRoot(handle.clone()),
+                Transform::from_xyz(cell_pos.x as f32 + 0.5, 0.0, cell_pos.z as f32 + 0.5)
+                    .with_rotation(Quat::from_rotation_y(pre_entity.rotation)),
+                Pickable::default(),
+                AutoScale,
+            ))
+            .observe(on_click)
+            .id();
+        grid.cells.insert(cell_pos, entity);
     } else if event.button == PointerButton::Secondary {
-        grid_right_click(event, grid, commands);
+        let Some(position) = event.hit.position else {
+            return;
+        };
+        let cell_pos = IVec3::new(position.x.floor() as i32, 0, position.z.floor() as i32);
+        delete_entity(grid, commands, cell_pos);
     }
-}
-
-fn left_click(
-    event: On<Pointer<Press>>,
-    palette: Res<AssetPalette>,
-    pre_entity: Res<PreEntity>,
-    mut grid: ResMut<WorldGrid>,
-    mut commands: Commands,
-) {
-    let Some(position) = event.hit.position else {
-        return;
-    };
-    let cell_pos = IVec3::new(position.x.floor() as i32, 0, position.z.floor() as i32);
-    if grid.cells.contains_key(&cell_pos) {
-        return;
-    }
-    let Some(i) = palette.selected_index else {
-        return;
-    };
-    let Some((_, handle)) = palette.loaded_models.get(i) else {
-        return;
-    };
-    let entity = commands
-        .spawn((
-            SceneRoot(handle.clone()),
-            Transform::from_xyz(cell_pos.x as f32 + 0.5, 0.0, cell_pos.z as f32 + 0.5)
-                .with_rotation(Quat::from_rotation_y(pre_entity.rotation)),
-            Pickable::default(),
-            AutoScale,
-        ))
-        .observe(on_click)
-        .id();
-    grid.cells.insert(cell_pos, entity);
 }
 
 fn apply_auto_scale(
@@ -200,14 +194,6 @@ fn apply_auto_scale(
             commands.entity(root).remove::<AutoScale>();
         }
     }
-}
-
-fn grid_right_click(event: On<Pointer<Press>>, grid: ResMut<WorldGrid>, commands: Commands) {
-    let Some(position) = event.hit.position else {
-        return;
-    };
-    let cell_pos = IVec3::new(position.x.floor() as i32, 0, position.z.floor() as i32);
-    delete_entity(grid, commands, cell_pos);
 }
 
 fn delete_entity(mut grid: ResMut<WorldGrid>, mut commands: Commands, cell_pos: IVec3) {
