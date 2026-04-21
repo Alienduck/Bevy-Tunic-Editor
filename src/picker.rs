@@ -151,7 +151,7 @@ fn left_click(
             SceneRoot(handle.clone()),
             Transform::from_xyz(cell_pos.x as f32 + 0.5, 0.0, cell_pos.z as f32 + 0.5)
                 .with_rotation(Quat::from_rotation_y(pre_entity.rotation)),
-            Pickable::IGNORE,
+            Pickable::default(),
             AutoScale,
         ))
         .observe(on_click)
